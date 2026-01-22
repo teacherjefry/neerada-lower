@@ -898,6 +898,218 @@
             }
         }
 
+        // --- MISSING FUNCTIONS IMPLEMENTATION ---
+
+        window.addBulkStudents = async function() {
+            const raw = document.getElementById('bulk-students').value;
+            if (!raw) return;
+            const lines = raw.split('\n');
+            let count = 0;
+            for (const line of lines) {
+                const parts = line.split(',');
+                if (parts.length >= 1) {
+                    const name = parts[0].trim();
+                    if (name) {
+                        const nick = parts.length > 1 ? parts[1].trim() : '';
+                        const newS = { id: Date.now().toString() + Math.random().toString().slice(2,5), name, nickname: nick, year: state.currentYear, classId: state.currentClass };
+                        await dbPut('students', newS, newS.id);
+                        count++;
+                    }
+                }
+            }
+            document.getElementById('bulk-students').value = '';
+            showNotification(`Added ${count} students`);
+            await loadClassData();
+            document.getElementById('roster-list-container').innerHTML = renderRosterList();
+            render();
+        };
+
+        window.deleteAllStudents = async function() {
+            if (!confirm(`Delete all students in ${state.currentClass}? This cannot be undone.`)) return;
+            const classStudents = state.students; 
+            for (const s of classStudents) {
+                await dbDelete('students', s.id);
+                // Also delete their grades
+                const allGrades = await dbGetAll('grades');
+                const sGrades = allGrades.filter(g => g.studentId === s.id);
+                for (const g of sGrades) await dbDelete('grades', g.id);
+            }
+            showNotification('All students deleted');
+            await loadClassData();
+            document.getElementById('roster-list-container').innerHTML = renderRosterList();
+            render();
+        };
+
+        window.resetMonthScores = async function() {
+            if (!confirm(`Reset all scores for ${state.currentMonth}?`)) return;
+            const allGrades = await dbGetAll('grades');
+            const toDelete = allGrades.filter(g => g.year === state.currentYear && g.month === state.currentMonth && state.students.some(s => s.id === g.studentId));
+            for (const g of toDelete) await dbDelete('grades', g.id);
+            state.grades = {}; 
+            await loadClassData();
+            render();
+            showNotification('Month scores reset');
+        };
+
+        window.downloadTemplate = function() {
+            const wb = XLSX.utils.book_new();
+            const wsData = [
+                ['Name', 'Nickname', ...ALL_SUBJECTS] 
+            ];
+            // Add example row
+            wsData.push(['Somchai Vong', 'Chai', 7, 8, 9, 8, 7, 8, 9, 8, 9, 10, 8, 9, 8, 7]);
+            
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, "Neerada_Grading_Template.xlsx");
+        };
+
+        window.saveEditedGrades = async function() {
+            // Placeholder for now as the quickUpdateScore handles most inline editing.
+            // If the Edit Grades modal is used in future for bulk operations, logic goes here.
+            closeModal('edit-grades-modal');
+            showNotification('Grades saved');
+        };
+
+        function finishSave() {
+            render();
+            updateTheme();
+            showNotification('Settings saved successfully');
+        }
+
+        function renderSettingsPage() {
+            return `
+                <div class="fade-in max-w-4xl mx-auto w-full pb-20">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-8">Settings</h2>
+                    
+                    <div class="grid gap-8">
+                        <!-- Class Management -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="layout-list" class="w-5 h-5 text-blue-600"></i> Class Management
+                            </h3>
+                            <div class="flex gap-2 mb-6">
+                                <input type="text" id="new-class-name" placeholder="New Class Name (e.g. Primary 4 - A)" class="flex-1 border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                <button onclick="addClass()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">Add Class</button>
+                            </div>
+                            <div class="space-y-2 max-h-60 overflow-y-auto custom-scroll">
+                                ${state.classes.map(c => `
+                                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 group hover:border-blue-200 transition-colors">
+                                        <span class="font-medium text-slate-700">${c}</span>
+                                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onclick="renameClass('${c}')" class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-white rounded-md transition-colors" title="Rename"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                                            <button onclick="deleteClass('${c}')" class="p-1.5 text-slate-500 hover:text-red-600 hover:bg-white rounded-md transition-colors" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- General Settings -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="sliders" class="w-5 h-5 text-blue-600"></i> General Configuration
+                            </h3>
+                            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-2">School Logo</label>
+                                    <input type="file" id="setting-logo-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-2">
+                                    ${state.schoolLogo ? `<img src="${state.schoolLogo}" class="h-16 object-contain border border-slate-100 rounded-lg p-1">` : ''}
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-2">Favicon</label>
+                                    <input type="file" id="setting-favicon-input" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1">Home Title</label>
+                                    <input type="text" id="setting-home-title" value="${state.homeTitle || ''}" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-1">Home Subtitle</label>
+                                    <textarea id="setting-home-subtitle" rows="2" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500">${state.homeSubtitle || ''}</textarea>
+                                </div>
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-700 mb-1">Quote</label>
+                                        <input type="text" id="setting-home-quote" value="${state.homeQuote || ''}" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-700 mb-1">Quote Author</label>
+                                        <input type="text" id="setting-home-author" value="${state.homeQuoteAuthor || ''}" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 flex justify-end">
+                                <button onclick="saveSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2">
+                                    <i data-lucide="save" class="w-4 h-4"></i> Save Changes
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Theme Selection -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="palette" class="w-5 h-5 text-blue-600"></i> Theme
+                            </h3>
+                            <div class="flex flex-wrap gap-3">
+                                ${Object.entries(THEMES).map(([key, t]) => `
+                                    <button onclick="setTheme('${key}')" class="px-4 py-2 rounded-lg border-2 ${state.theme === key ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' : 'border-slate-200 text-slate-600 hover:border-blue-300'} transition-all">
+                                        ${t.name}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStudentView() {
+            if (!state.selectedStudent) return '';
+            const s = state.selectedStudent;
+            
+            return `
+                <div class="fade-in max-w-5xl mx-auto w-full flex flex-col h-full">
+                    <div class="flex items-center gap-4 mb-6">
+                        <button onclick="navigateToClassList()" class="p-2 hover:bg-slate-200 rounded-full transition-colors"><i data-lucide="arrow-left" class="w-6 h-6 text-slate-600"></i></button>
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-800">${s.name}</h2>
+                            <p class="text-slate-500">${s.nickname || ''} • ${state.currentClass}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1">
+                        <div class="overflow-x-auto custom-scroll">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200">
+                                        <th class="p-3 border border-slate-200 min-w-[150px] font-bold text-slate-700">Subject</th>
+                                        ${MONTHS.map(m => `<th class="p-3 border border-slate-200 text-center font-bold text-slate-700 text-sm whitespace-nowrap">${m.substr(0,3)}</th>`).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ALL_SUBJECTS.map(sub => `
+                                        <tr class="hover:bg-slate-50 border-b border-slate-100">
+                                            <td class="p-3 border border-slate-200 font-medium text-slate-600 text-sm">${SUBJECT_DISPLAY_MAP[sub]}</td>
+                                            ${MONTHS.map(m => {
+                                                const scores = state.studentHistory[m] || {};
+                                                const val = scores[sub];
+                                                return `<td class="p-3 border border-slate-200 text-center text-sm">${val !== undefined ? val : '-'}</td>`;
+                                            }).join('')}
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         // --- INITIALIZATION ---
         async function initApp() {
             state.availableYears = generateYearList();
