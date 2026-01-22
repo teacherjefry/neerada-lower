@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neerada Primary - Grading System</title>
+    
+    <!-- Favicons -->
+    <link rel="icon" id="app-favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+    <link rel="apple-touch-icon" id="app-apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- SheetJS for Excel Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Add Phetsarath OT font face */
+        @font-face {
+            font-family: 'Phetsarath OT';
+            src: local('Phetsarath OT');
+        }
+
+        body { font-family: 'Inter', 'Phetsarath OT', 'Noto Sans Lao', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        .slide-up { animation: slideUp 0.6s ease-out forwards; opacity: 0; transform: translateY(20px); }
+        .slide-up-delay-1 { animation-delay: 0.1s; }
+        .slide-up-delay-2 { animation-delay: 0.2s; }
+        .slide-up-delay-3 { animation-delay: 0.3s; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+        
+        .custom-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .lao-text { font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif; }
+
+        /* Custom Score Colors */
+        .bg-score-blue { background-color: #0dbbf4 !important; }
+        .bg-score-green { background-color: #0df46a !important; }
+
+        /* Vertical Headers Class */
+        .th-vertical {
+            vertical-align: bottom;
+            padding-bottom: 8px;
+            height: 180px;
+            white-space: nowrap;
+        }
+        
+        .th-vertical > div {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: left; 
+            gap: 4px;
+        }
+
+        /* Sticky Header Logic */
+        thead.sticky-header th {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background-color: #f8fafc; /* bg-slate-50 */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        /* Corner cells need higher z-index to sit above row headers and col headers */
+        thead.sticky-header th.sticky-corner {
+            z-index: 50;
+        }
+
+        /* Hero Background - Primary School / Education Vibe */
+        .hero-bg {
+            background-image: url('https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=2573&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        /* Print Styles */
+        @media print {
+            @page { margin: 10mm; } 
+            
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            
+            /* Hide Global Nav and Landing Page in Print */
+            #global-nav, #landing-page { display: none !important; }
+            #app-wrapper { display: flex !important; min-height: 0 !important; }
+
+            body { 
+                background: white; 
+                color: black; 
+                font-size: 10pt; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                height: auto;
+            }
+
+            /* Remove shadows and overflow clipping for print */
+            .shadow-sm, .shadow-lg, .shadow-2xl { box-shadow: none !important; }
+            .overflow-hidden { overflow: visible !important; }
+            .custom-scroll { overflow: visible !important; height: auto !important; }
+            
+            /* Table Styling for Print */
+            table { 
+                border-collapse: collapse !important; 
+                width: 100%;
+                table-layout: auto;
+            }
+            
+            /* Consistent Borders - FORCE BLACK ON ALL CELLS */
+            th, td { 
+                padding: 4px !important; 
+                border: 1px solid #000 !important; 
+            }
+            
+            /* Specific fix for the sticky headers/columns borders */
+            .border-slate-300, .border-slate-200 { border-color: #000 !important; }
+
+            /* Handle Headers */
+            thead { display: table-header-group; }
+            tr { page-break-inside: avoid; }
+            
+            .th-vertical { height: 120px; } /* Slightly shorter for print */
+            
+            /* Remove Sticky positioning in print to avoid layout issues */
+            .sticky { position: static !important; }
+            thead.sticky-header th { position: static !important; box-shadow: none !important; }
+            
+            /* Adjust Name Column Width - Make it compact */
+            th:first-child, td:first-child {
+                min-width: 0 !important;
+                width: 1% !important; /* Force shrink to content */
+                white-space: nowrap !important;
+            }
+
+            /* --- PRINT COLOR CORRECTIONS --- */
+            
+            /* 1. Remove Row Highlights (Cursor/Selection) */
+            /* Force row background to transparent to hide user selection highlights */
+            tr { background-color: transparent !important; }
+            
+            /* 2. Enforce Data Colors (Match Screen) */
+            /* Force cell backgrounds to print even if row is transparent */
+            td.bg-score-green { background-color: #0df46a !important; -webkit-print-color-adjust: exact; }
+            td.bg-score-blue { background-color: #0dbbf4 !important; -webkit-print-color-adjust: exact; }
+            
+            /* Lao Avg (Light Purple) */
+            td.bg-purple-100 { background-color: #f3e8ff !important; -webkit-print-color-adjust: exact; }
+            /* Total (Light Yellow) */
+            td.bg-yellow-50 { background-color: #fefce8 !important; -webkit-print-color-adjust: exact; }
+            /* Average (Yellow) */
+            td.bg-yellow-200 { background-color: #fef08a !important; -webkit-print-color-adjust: exact; }
+            
+            /* Other Colors */
+            td.bg-orange-100 { background-color: #ffedd5 !important; -webkit-print-color-adjust: exact; }
+            td.bg-teal-100 { background-color: #ccfbf1 !important; -webkit-print-color-adjust: exact; }
+            
+            /* Explicitly define highlight colors for print to ensure manual row highlights appear */
+            .bg-yellow-100 { background-color: #fef9c3 !important; -webkit-print-color-adjust: exact; }
+            .bg-green-100 { background-color: #dcfce7 !important; -webkit-print-color-adjust: exact; }
+            .bg-red-100 { background-color: #fee2e2 !important; -webkit-print-color-adjust: exact; }
+            .bg-blue-100 { background-color: #dbeafe !important; -webkit-print-color-adjust: exact; }
+
+            /* Force text colors */
+            .text-red-600 { color: #dc2626 !important; } 
+            .text-green-900 { color: #14532d !important; }
+            .text-blue-900 { color: #1e3a8a !important; }
+            .text-purple-900 { color: #581c87 !important; }
+            .text-yellow-900 { color: #713f12 !important; }
+            .text-black { color: #000 !important; }
+            
+            /* Hide inputs, show text */
+            input.score-input { display: none !important; }
+            span.score-print { display: inline-block !important; width: 100%; text-align: center; color: black !important; }
+            
+            /* Footer */
+            footer.print-footer {
+                display: block;
+                position: static; /* Appears at end of flow (Last Page) */
+                width: 100%;
+                text-align: center;
+                font-size: 8pt;
+                color: #000;
+                padding-top: 10px;
+                margin-top: 10px;
+                border-top: 1px solid #000;
+                background: white;
+                page-break-inside: avoid;
+            }
+        }
+        
+        .print-only { display: none; }
+        span.score-print { display: none; } /* Default hidden on screen */
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- Global Navigation (Website Style) -->
+    <nav id="global-nav" class="bg-white/95 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50 no-print transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchGlobalTab('home')">
+                    <div class="bg-blue-600 text-white p-1.5 rounded-lg">
+                        <i data-lucide="book-open" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-800">Neerada<span class="text-blue-600">Primary</span></span>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center gap-8">
+                    <button onclick="switchGlobalTab('home')" id="g-tab-home" class="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors border-b-2 border-transparent hover:border-blue-600 py-1">Home</button>
+                    <button onclick="switchGlobalTab('scoring')" id="g-tab-scoring" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all shadow-md hover:shadow-lg transform active:scale-95">
+                        Scoring App
+                    </button>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <div class="flex items-center md:hidden">
+                    <button onclick="toggleMobileMenu()" class="text-slate-500 hover:text-slate-700 p-2">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile Dropdown -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-slate-100 shadow-lg absolute w-full">
+            <div class="px-4 pt-2 pb-4 space-y-1">
+                <button onclick="switchGlobalTab('home')" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-50">Home</button>
+                <button onclick="switchGlobalTab('scoring')" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-blue-600 bg-blue-50 font-bold">Open Scoring App</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- LANDING PAGE (Home) -->
+    <div id="landing-page" class="flex-grow flex flex-col w-full fade-in relative overflow-x-hidden">
+        
+        <!-- Decorative Background Blobs (Aesthetic Touches) -->
+        <div class="absolute top-20 left-0 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob pointer-events-none z-0"></div>
+        <div class="absolute top-20 right-0 w-96 h-96 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 pointer-events-none z-0"></div>
+        <div class="absolute bottom-0 left-20 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000 pointer-events-none z-0"></div>
+
+        <!-- Hero Section -->
+        <div class="relative hero-bg min-h-[550px] flex items-center justify-center px-4 py-20 text-white z-10">
+            <!-- Colorful Gradient Overlay: Green - White(Transparent) - Blue -->
+            <div class="absolute inset-0 bg-gradient-to-br from-emerald-800/90 via-white/20 to-blue-800/90 z-0"></div>
+            
+            <div class="relative z-10 max-w-5xl mx-auto w-full text-center space-y-8">
+                
+                <div class="inline-block bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-6 py-2 text-sm font-serif italic mb-2 slide-up text-white shadow-lg">
+                    The Smart Grading Solution for Lower Primary
+                </div>
+                
+                <h1 id="landing-hero-title" class="text-5xl md:text-7xl font-bold tracking-tight font-serif slide-up slide-up-delay-1 leading-tight text-white drop-shadow-lg pb-2">
+                    Simplifying Education,<br>One Grade at a Time.
+                </h1>
+                
+                <p id="landing-hero-subtitle" class="text-lg md:text-2xl text-blue-50 max-w-3xl mx-auto slide-up slide-up-delay-2 font-light leading-relaxed drop-shadow-md">
+                    Neerada Primary empowers teachers with an intuitive grading system specifically designed for the Lao curriculum. Manage scores, generate reports, and focus on what matters—teaching.
+                </p>
+                
+                <div class="pt-8 slide-up slide-up-delay-3">
+                    <button onclick="switchGlobalTab('scoring')" class="bg-gradient-to-r from-emerald-500 hover:from-emerald-600 to-blue-500 hover:to-blue-600 text-white px-10 py-4 rounded-full font-bold text-lg shadow-xl shadow-blue-900/20 transition-all transform hover:-translate-y-1 hover:shadow-2xl flex items-center gap-3 mx-auto">
+                        Start Scoring Now <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- SVG Wave Separator Bottom -->
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-20">
+                <svg class="relative block w-full h-[50px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                    <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="#f8fafc"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="bg-slate-50 py-20 px-4 relative z-10">
+            <div class="max-w-6xl mx-auto">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                    <!-- Feature 1 -->
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group hover:border-blue-200">
+                        <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                            <i data-lucide="calculator" class="w-7 h-7"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-3 group-hover:text-blue-600 transition-colors">Auto Calculation</h3>
+                        <p class="text-slate-500 leading-relaxed">Automatically computes averages, ranks, and pass/fail results based on the Lao curriculum standards.</p>
+                    </div>
+                    
+                    <!-- Feature 2 -->
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group hover:border-emerald-200">
+                        <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+                            <i data-lucide="file-spreadsheet" class="w-7 h-7"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-3 group-hover:text-emerald-600 transition-colors">Excel Support</h3>
+                        <p class="text-slate-500 leading-relaxed">Seamlessly import student lists and scores from Excel. Export your data for backups and reporting.</p>
+                    </div>
+                    
+                    <!-- Feature 3 -->
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group hover:border-purple-200">
+                        <div class="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300">
+                            <i data-lucide="printer" class="w-7 h-7"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-3 group-hover:text-purple-600 transition-colors">Print Ready</h3>
+                        <p class="text-slate-500 leading-relaxed">Generate beautiful, printable report cards for individual students or the entire class roster instantly.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gallery Section -->
+        <div class="bg-indigo-50/50 py-20 px-4 relative z-10">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-12">
+                    <span class="text-blue-600 font-bold uppercase tracking-widest text-xs">Moments</span>
+                    <h2 class="text-4xl font-bold text-slate-800 mt-2 font-serif">School Life</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-auto md:h-96">
+                    <!-- Classroom Engagement -->
+                    <div class="rounded-3xl overflow-hidden shadow-lg h-64 md:h-full lg:col-span-2 relative group cursor-pointer">
+                        <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2670&auto=format&fit=crop" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Classroom">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90 group-hover:opacity-80 transition-opacity"></div>
+                        <div class="absolute bottom-6 left-6 text-white transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                            <p class="text-xs font-bold uppercase tracking-wider text-blue-300 mb-1">Learning</p>
+                            <h3 class="text-2xl font-bold font-serif">Classroom Engagement</h3>
+                            <p class="text-blue-100 text-sm font-serif italic mt-2 max-w-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-75">
+                                Fostering curiosity and critical thinking through interactive, student-centered lessons.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Fun Activities (Updated Image) -->
+                    <div class="rounded-3xl overflow-hidden shadow-lg h-64 md:h-full relative group cursor-pointer">
+                        <img src="https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?q=80&w=2670&auto=format&fit=crop" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Kids Playing">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90 group-hover:opacity-80 transition-opacity"></div>
+                        <div class="absolute bottom-6 left-6 text-white transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                            <p class="text-xs font-bold uppercase tracking-wider text-pink-300 mb-1">Fun</p>
+                            <h3 class="text-xl font-bold font-serif">Activities</h3>
+                            <p class="text-pink-100 text-sm font-serif italic mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-75">
+                                Building friendships and social skills through joyful outdoor play and teamwork.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Arts & Crafts -->
+                    <div class="rounded-3xl overflow-hidden shadow-lg h-64 md:h-full relative group cursor-pointer">
+                        <img src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=2573&auto=format&fit=crop" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Art Supplies">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90 group-hover:opacity-80 transition-opacity"></div>
+                        <div class="absolute bottom-6 left-6 text-white transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                            <p class="text-xs font-bold uppercase tracking-wider text-yellow-300 mb-1">Creativity</p>
+                            <h3 class="text-xl font-bold font-serif">Arts & Crafts</h3>
+                            <p class="text-yellow-100 text-sm font-serif italic mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-75">
+                                Unleashing imagination and expression through colors, shapes, and hands-on creation.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quote Section with Happy Students Image -->
+        <div class="bg-white py-24 px-4 relative overflow-hidden z-10">
+            <div class="max-w-6xl mx-auto relative z-10">
+                <div class="bg-slate-50 rounded-[2.5rem] p-8 md:p-12 shadow-2xl shadow-blue-100 border border-slate-100 relative overflow-hidden">
+                    <!-- Gradient Border Top/Bottom Effect -->
+                    <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+                    <div class="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400"></div>
+
+                    <div class="grid md:grid-cols-2 gap-12 items-center">
+                        <!-- Image Side -->
+                        <div class="relative order-2 md:order-1">
+                            <div class="absolute -inset-3 bg-gradient-to-tr from-yellow-300 to-pink-300 rounded-[2rem] transform -rotate-2 opacity-70 blur-sm"></div>
+                            <img src="https://images.unsplash.com/photo-1571260899304-425eee4c7efc?q=80&w=2070&auto=format&fit=crop" 
+                                 alt="Happy Students" 
+                                 class="relative rounded-[1.5rem] shadow-lg w-full h-[350px] object-cover transform rotate-2 hover:rotate-0 transition-all duration-500 border-4 border-white">
+                        </div>
+
+                        <!-- Quote Side -->
+                        <div class="relative text-center md:text-left order-1 md:order-2">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto md:mx-0 mb-6 text-blue-600">
+                                <i data-lucide="quote" class="w-8 h-8"></i>
+                            </div>
+                            <blockquote id="landing-quote-text" class="text-3xl md:text-4xl font-serif text-slate-800 italic leading-relaxed mb-8">
+                                "Education is the passport to the future, for tomorrow belongs to those who prepare for it today."
+                            </blockquote>
+                            <div class="flex items-center justify-center md:justify-start gap-4">
+                                <div class="h-1 w-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                                <cite id="landing-quote-author" class="text-sm font-bold text-slate-500 uppercase tracking-widest not-italic">— Malcolm X</cite>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Landing Footer -->
+        <footer class="bg-slate-900 text-white py-12 px-4 border-t border-slate-800 relative z-10">
+            <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 mb-8">
+                <div class="text-center md:text-left">
+                    <div class="flex items-center justify-center md:justify-start gap-2 mb-4">
+                        <i data-lucide="book-open" class="w-6 h-6 text-blue-400"></i>
+                        <span class="font-bold text-xl">Neerada<span class="text-blue-400">Primary</span></span>
+                    </div>
+                    <p class="text-slate-400 text-sm max-w-xs leading-relaxed">
+                        Designed with love for teachers and schools. Making grading simple, accurate, and beautiful.
+                    </p>
+                </div>
+                
+                <div class="flex gap-6">
+                    <a href="#" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-all">
+                        <i data-lucide="facebook" class="w-5 h-5"></i>
+                    </a>
+                    <a href="#" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-sky-500 hover:text-white transition-all">
+                        <i data-lucide="twitter" class="w-5 h-5"></i>
+                    </a>
+                    <a href="#" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-pink-600 hover:text-white transition-all">
+                        <i data-lucide="instagram" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="max-w-6xl mx-auto pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
+                <p>&copy; 2026 Neerada Grading Systems. Vientiane, Laos.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- SCORING APP WRAPPER (Initially Hidden) -->
+    <div id="app-wrapper" class="hidden flex-col min-h-screen bg-slate-50">
+        <!-- App Header & Navigation -->
+        <header id="main-header" class="bg-blue-900 text-white shadow-lg sticky top-0 z-30 no-print flex-none transition-colors duration-300">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="h-16 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-white/10 p-2 rounded-lg overflow-hidden w-10 h-10 flex items-center justify-center">
+                            <img id="header-logo" src="" alt="" class="w-full h-full object-contain hidden">
+                            <i id="header-icon" data-lucide="graduation-cap" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <!-- Dynamic Class Selector in Header -->
+                            <div class="flex items-center gap-2">
+                                <select id="header-class-selector" onchange="switchClass(this.value)" class="bg-blue-800 border border-blue-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 font-bold outline-none cursor-pointer hover:bg-blue-700 transition-colors">
+                                    <!-- Populated by JS -->
+                                </select>
+                                <span class="text-sm font-normal text-blue-200 border-l border-blue-700 pl-2 hidden md:inline-block">
+                                    <span id="header-year-display"></span>
+                                </span>
+                            </div>
+                            <p class="text-xs text-blue-200">Grading System</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Desktop Navigation Tabs -->
+                    <nav class="hidden md:flex items-center gap-2">
+                        <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 text-blue-100">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+                        </button>
+                        <button onclick="switchTab('class')" id="tab-class" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 text-blue-100">
+                            <i data-lucide="table" class="w-4 h-4"></i> Class View
+                        </button>
+                        <button onclick="checkAdminCode()" id="tab-settings" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 text-blue-100">
+                            <i data-lucide="settings" class="w-4 h-4"></i> Settings
+                        </button>
+                    </nav>
+                </div>
+            </div>
+            <!-- Mobile Nav -->
+            <div class="md:hidden flex justify-around border-t border-blue-800 py-2">
+                <button onclick="switchTab('dashboard')" class="text-xs flex flex-col items-center gap-1 text-blue-200"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dash</button>
+                <button onclick="switchTab('class')" class="text-xs flex flex-col items-center gap-1 text-blue-200"><i data-lucide="table" class="w-5 h-5"></i> Class</button>
+                <button onclick="checkAdminCode()" class="text-xs flex flex-col items-center gap-1 text-blue-200"><i data-lucide="settings" class="w-5 h-5"></i> Set</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="app" class="flex-grow w-full mx-auto p-4 flex flex-col">
+            <!-- Dynamic Content Injected Here -->
+        </main>
+
+        <!-- App Footer -->
+        <footer class="bg-white border-t border-slate-200 py-4 no-print flex-none">
+            <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-400">
+                &copy; Neerada <span id="footer-year"></span>. All rights reserved.
+            </div>
+        </footer>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="fixed top-24 right-6 z-[60] px-6 py-4 rounded-lg shadow-lg hidden items-center gap-3 transition-all duration-300 transform translate-x-full no-print">
+        <i id="notif-icon" data-lucide="check-circle" class="w-5 h-5"></i>
+        <p id="notif-msg" class="font-medium">Message</p>
+    </div>
+
+    <!-- Admin Code Modal -->
+    <div id="admin-code-modal" class="fixed inset-0 bg-black/50 z-[80] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden fade-in">
+            <div class="p-6 text-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                    <i data-lucide="lock" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Admin Access Required</h3>
+                <p class="text-sm text-slate-500 mb-6">Please enter the admin code to access settings.</p>
+                <input type="password" id="admin-code-input" class="w-full border border-slate-300 rounded-lg p-3 text-center text-lg tracking-widest font-bold mb-4 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="****" maxlength="4">
+                <div class="flex gap-3">
+                    <button onclick="closeModal('admin-code-modal')" class="flex-1 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg">Cancel</button>
+                    <button onclick="validateAdminCode()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Unlock</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Settings Modal -->
+    <div id="print-settings-modal" class="fixed inset-0 bg-black/30 z-[70] hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden fade-in">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800">Print Options</h3>
+                <button onclick="closeModal('print-settings-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Orientation -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Orientation</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="setPrintOrientation('portrait')" id="btn-portrait" class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-slate-600">
+                            <i data-lucide="file" class="w-6 h-6 mb-1"></i>
+                            <span class="text-xs font-medium">Portrait</span>
+                        </button>
+                        <button onclick="setPrintOrientation('landscape')" id="btn-landscape" class="flex flex-col items-center justify-center p-3 rounded-lg border-2 border-blue-600 bg-blue-50 text-blue-700 transition-all">
+                            <i data-lucide="file-minus" class="w-6 h-6 mb-1"></i>
+                            <span class="text-xs font-medium">Landscape</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Scale -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Scale: <span id="scale-value" class="text-blue-600">100%</span></label>
+                    <input type="range" id="print-scale" min="50" max="100" value="100" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <div class="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>50%</span>
+                        <span>Fit to Page</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-5 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button onclick="executePrint()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Print
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Students Modal -->
+    <div id="manage-students-modal" class="fixed inset-0 bg-black/30 z-50 hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden fade-in flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Manage Students</h3>
+                    <p class="text-sm text-slate-500">Add, edit, or remove students from <span id="manage-modal-class-name" class="font-bold"></span></p>
+                </div>
+                <button onclick="closeModal('manage-students-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto custom-scroll space-y-8">
+                <!-- Add Single -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                    <label class="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> Add Single Student
+                    </label>
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <input type="text" id="new-student-name" placeholder="Full Name (ຊື່ແລະນາມສະກຸນ)" class="flex-1 border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500 lao-text">
+                        <input type="text" id="new-student-nick" placeholder="Nickname (ຊື່ນ້ອຍ)" class="md:w-40 border border-slate-300 rounded-lg p-2.5 outline-none focus:border-blue-500 lao-text">
+                        <button onclick="addStudent()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors">Add</button>
+                    </div>
+                </div>
+
+                <!-- Bulk Add -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                    <label class="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                        <i data-lucide="users" class="w-4 h-4"></i> Bulk Add (CSV Style)
+                    </label>
+                    <p class="text-xs text-slate-500 mb-3">Format: <code>Name, Nickname</code> (One student per line)</p>
+                    <textarea id="bulk-students" rows="4" class="w-full border border-slate-300 rounded-lg p-3 text-sm mb-3 outline-none focus:border-blue-500 custom-scroll lao-text" placeholder="Somchai Vong, Chai&#10;Noy Phommasone, Noy"></textarea>
+                    <button onclick="addBulkStudents()" class="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2.5 rounded-lg w-full font-medium transition-colors">Process Bulk List</button>
+                </div>
+
+                <!-- Current Roster -->
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Current Roster</h4>
+                        <button onclick="deleteAllStudents()" class="text-red-600 text-xs hover:underline flex items-center gap-1 font-medium bg-red-50 px-3 py-1.5 rounded-full border border-red-100">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i> Delete All
+                        </button>
+                    </div>
+                    <div id="roster-list-container" class="bg-slate-50 rounded-xl border border-slate-200 max-h-60 overflow-y-auto custom-scroll p-2">
+                        <!-- Roster injected here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button onclick="closeModal('manage-students-modal'); loadClassData(); render();" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-6 py-2 rounded-lg font-medium">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="fixed inset-0 bg-black/30 z-50 hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden fade-in">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-slate-800 lao-text">ອັບໂຫລດຄະແນນ (Upload Grades)</h3>
+                <button onclick="closeModal('upload-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-8">
+                <p class="text-sm text-slate-500 mb-4 lao-text">
+                    Importing for <strong id="modal-month" class="text-blue-600">September</strong> <strong id="modal-year" class="text-blue-600"></strong>.
+                </p>
+                <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer bg-slate-50 hover:bg-blue-50">
+                    <div class="bg-blue-100 p-4 rounded-full mb-4"><i data-lucide="upload" class="w-8 h-8 text-blue-600"></i></div>
+                    <p class="font-medium text-slate-700 lao-text">Click or Drag File Here</p>
+                    <input type="file" id="file-input" class="hidden" accept=".xlsx,.xls,.csv">
+                </div>
+                <div class="mt-6 flex justify-between items-center">
+                     <button onclick="downloadTemplate()" class="text-sm text-blue-600 hover:underline flex items-center gap-1 lao-text">
+                        <i data-lucide="download" class="w-4 h-4"></i> Download Template
+                    </button>
+                    <button onclick="closeModal('upload-modal')" class="text-slate-500 hover:text-slate-800 text-sm font-medium lao-text">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Grades Modal -->
+    <div id="edit-grades-modal" class="fixed inset-0 bg-black/30 z-50 hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden fade-in flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-slate-800 lao-text">Edit Scores</h3>
+                <button onclick="closeModal('edit-grades-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="px-6 pt-4 pb-2 bg-slate-50 border-b border-slate-100">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-slate-500">Editing <span id="edit-student-name" class="font-bold text-slate-800"></span></p>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-medium text-slate-500">Month:</label>
+                        <select id="edit-modal-month-select" class="text-sm border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500 lao-text bg-white">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scroll">
+                <div id="grades-input-container" class="space-y-3">
+                    <!-- Inputs injected here -->
+                </div>
+            </div>
+            <div class="p-6 border-t border-slate-100 flex justify-end gap-3">
+                <button onclick="closeModal('edit-grades-modal')" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <button onclick="saveEditedGrades()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Save Scores</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div id="edit-student-modal" class="fixed inset-0 bg-black/30 z-50 hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden fade-in">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-lg font-bold">Edit Student</h3>
+                <button onclick="closeModal('edit-student-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="edit-student-id">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                    <input type="text" id="edit-student-fullname" class="w-full border border-slate-300 rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nickname</label>
+                    <input type="text" id="edit-student-nickname" class="w-full border border-slate-300 rounded-lg p-2">
+                </div>
+            </div>
+            <div class="p-6 border-t border-slate-100 flex justify-between items-center">
+                <button onclick="deleteStudentFromModal()" class="text-red-500 hover:text-red-700 text-sm font-medium flex items-center gap-1">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Delete
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeModal('edit-student-modal')" class="px-4 py-2 text-slate-600">Cancel</button>
+                    <button onclick="saveStudentDetails()" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic (Type Module for Firebase) -->
+    <script type="module">
+        // Import Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        // --- CONSTANTS ---
+        const MONTHS = ['September', 'October', 'November', 'December', 'January', 'February', 'March', 'April', 'May', 'June'];
+        const SEM1_MONTHS = ['September', 'October', 'November', 'December', 'January'];
+        const SEM2_MONTHS = ['February', 'March', 'April', 'May'];
+        
+        // --- UPDATED CLASS CONSTANTS ---
+        const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+        const DEFAULT_CLASSES = [];
+        ['Primary 1', 'Primary 2', 'Primary 3'].forEach(level => {
+            SECTIONS.forEach(sec => {
+                DEFAULT_CLASSES.push(`${level} - Section ${sec}`);
+            });
+        });
+        
+        const DEFAULT_HOME_TITLE = "Simplifying\nEducation,\nOne Grade at a Time.";
+        const DEFAULT_HOME_SUBTITLE = "Neerada Primary empowers teachers with an intuitive grading system specifically designed for the Lao curriculum. Manage scores, generate reports, and focus on what matters—teaching.";
+        const DEFAULT_QUOTE = "Education is the passport to the future, for tomorrow belongs to those who prepare for it today.";
+        const DEFAULT_AUTHOR = "Malcolm X";
+
+        const MONTH_DISPLAY_MAP = {
+            'September': 'ກັນຍາ (Sep)', 'October': 'ຕຸລາ (Oct)', 'November': 'ພະຈິກ (Nov)', 'December': 'ທັນວາ (Dec)',
+            'January': 'ມັງກອນ (Jan)', 'February': 'ກຸມພາ (Feb)', 'March': 'ມີນາ (Mar)', 'April': 'ເມສາ (Apr)',
+            'May': 'ພຶດສະພາ (May)', 'June': 'ມິຖຸນາ (Jun)',
+            'Semester 1': 'ພາກຮຽນ 1 (Sem 1)',
+            'Semester 2': 'ພາກຮຽນ 2 (Sem 2)',
+            'All Year': 'ສະເລ່ຍ ມົດ​ປີ​ (All Year)'
+        };
+
+        const LAO_SUB_SUBJECTS = ['Reading', 'Rewriting', 'Transcription', 'Speaking', 'Writing', 'Dictation'];
+        const OTHER_SUBJECTS = ['Mathematics', 'Science', 'Values Education', 'Music', 'Art', 'Physical Education', 'Handicraft', 'English'];
+        const ALL_SUBJECTS = [...LAO_SUB_SUBJECTS, ...OTHER_SUBJECTS];
+
+        const SUBJECT_DISPLAY_MAP = {
+            'Reading': 'ຫັດອ່ານ READING',
+            'Rewriting': 'ຫັດກາຍ REWRITING',
+            'Transcription': 'ຫັດຂຽນງາມ TRANSCRIPTION',
+            'Speaking': 'ຟັງ-ເວົ້າ SPEAKING & LISTENING',
+            'Writing': 'ຫັດແຕ່ງ WRITING',
+            'Dictation': 'ຂຽນທວາຍ DICTATION',
+            'LaoTotal': 'ລວມພາສາລາວ LAO TOTAL',
+            'LaoAvg': 'ສະເລ່ຍພາສາລາວ LAO AVG',
+            'Mathematics': 'ຄະນິດສາດ MATHEMATICS',
+            'Science': 'ວິທະຍາສາດ SCIENCE',
+            'Values Education': 'ຄຸນສົມບັດ VALUES EDUCATION',
+            'Music': 'ຮ້ອງເພັງ MUSIC',
+            'Art': 'ສີລະປະກຳ ART',
+            'Physical Education': 'ພາລະສຶກສາ PHYSICAL EDUCATION',
+            'Handicraft': 'ຫັດຖະກຳ HANDICRAFT',
+            'English': 'ພາສາອັງກິດ ENGLISH',
+            'GrandTotal': 'ຄະແນນລວມ TOTAL SCORE',
+            'GrandAvg': 'ສະເລ່ຍ AVERAGE',
+            'Rank': 'ຈັດທີ RANK',
+            'Grade': 'ເກດ GRADE',
+            'Result': 'ຜົນການສອບເສັງ'
+        };
+
+        const SUBJECT_TO_EXCEL_MAP = {
+            'Reading': 'ຫັດອ່ານ READING', 'Rewriting': 'ຫັດກາຍ REWRITING', 'Transcription': 'ຫັດຂຽນງາມ TRANSCRIPTION', 'Speaking': 'ຟັງ-ເວົ້າ SPEAKING & LISTENING',
+            'Writing': 'ຫັດແຕ່ງ WRITING', 'Dictation': 'ຂຽນທວາຍ DICTATION', 'Mathematics': 'ຄະນິດສາດ MATHEMATICS',
+            'Science': 'ວິທະຍາສາດ SCIENCE', 'Values Education': 'ຄຸນສົມບັດ VALUES EDUCATION',
+            'Music': 'ຮ້ອງເພັງ MUSIC', 'Art': 'ສີລະປະກຳ ART', 'Physical Education': 'ພາລະສຶກສາ PHYSICAL EDUCATION',
+            'Handicraft': 'ຫັດຖະກຳ HANDICRAFT', 'English': 'ພາສາອັງກິດ ENGLISH'
+        };
+
+        const THEMES = {
+            blue: { name: 'Ocean Blue', header: 'bg-blue-900', btn: 'bg-blue-600', btnHover: 'hover:bg-blue-700', activeTab: 'bg-white/20' },
+            emerald: { name: 'Emerald Green', header: 'bg-emerald-900', btn: 'bg-emerald-600', btnHover: 'hover:bg-emerald-700', activeTab: 'bg-white/20' },
+            violet: { name: 'Royal Violet', header: 'bg-violet-900', btn: 'bg-violet-600', btnHover: 'hover:bg-violet-700', activeTab: 'bg-white/20' },
+            amber: { name: 'Warm Amber', header: 'bg-amber-900', btn: 'bg-amber-600', btnHover: 'hover:bg-amber-700', activeTab: 'bg-white/20' },
+            slate: { name: 'Corporate Slate', header: 'bg-slate-900', btn: 'bg-slate-600', btnHover: 'hover:bg-slate-700', activeTab: 'bg-white/20' }
+        };
+
+        // --- GLOBAL STATE ---
+        const state = {
+            currentView: 'home',
+            activeTab: 'dashboard', 
+            view: 'class', 
+            currentClass: DEFAULT_CLASSES[0], // Default Class P1-A
+            classes: DEFAULT_CLASSES, // Dynamic Class List
+            schoolLogo: null,
+            selectedStudent: null,
+            currentMonth: 'September',
+            currentYear: '2025-2026', 
+            availableYears: [], 
+            students: [],
+            grades: {}, 
+            studentHistory: {},
+            sortKey: 'rank', 
+            sortDesc: true,
+            editModalMonth: 'September', 
+            theme: 'blue', 
+            printOrientation: 'landscape',
+            printScale: 100,
+            homeTitle: DEFAULT_HOME_TITLE,
+            homeSubtitle: DEFAULT_HOME_SUBTITLE,
+            homeQuote: DEFAULT_QUOTE,
+            homeQuoteAuthor: DEFAULT_AUTHOR,
+            user: null, 
+            isAdminUnlocked: false
+        };
+
+        // --- FIREBASE INIT ---
+        // TODO: Replace the following config with your own from the Firebase Console if running outside this environment.
+        // 1. Go to https://console.firebase.google.com/
+        // 2. Click "Add project" and follow the steps.
+        // 3. Click the Web icon (</>) to add a web app.
+        // 4. Copy the "const firebaseConfig = { ... }" object.
+        // 5. Paste it below.
+
+        let firebaseConfig;
+        
+        // Check if running in the preview environment (DO NOT DELETE THIS CHECK)
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            // PASTE YOUR FIREBASE CONFIGURATION HERE
+            firebaseConfig = {
+                apiKey: "API_KEY",
+                authDomain: "PROJECT_ID.firebaseapp.com",
+                projectId: "PROJECT_ID",
+                storageBucket: "PROJECT_ID.firebasestorage.app",
+                messagingSenderId: "SENDER_ID",
+                appId: "APP_ID"
+            };
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // --- HELPER FUNCTIONS ---
+        function generateYearList() {
+            const years = [];
+            const startYear = 2025;
+            const endYear = 2030;
+            for (let y = startYear; y <= endYear; y++) {
+                years.push(`${y}-${y + 1}`);
+            }
+            return years;
+        }
+
+        function normalizeText(text) {
+            if (!text) return '';
+            return String(text).toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+
+        // --- DATA LAYER (Firestore) ---
+        // We store data under: /artifacts/{appId}/users/{userId}/{collectionName}
+        function getUserCollection(collectionName) {
+            if (!state.user) return null;
+            return collection(db, 'artifacts', appId, 'users', state.user.uid, collectionName);
+        }
+
+        async function dbGetAll(collectionName) {
+            const col = getUserCollection(collectionName);
+            if (!col) return [];
+            const snapshot = await getDocs(col);
+            return snapshot.docs.map(d => d.data());
+        }
+
+        async function dbPut(collectionName, data, id) {
+            if (!state.user) return;
+            const col = getUserCollection(collectionName);
+            const key = id || data.id || data.key; // Fallback for settings which use 'key'
+            if (!key) return;
+            await setDoc(doc(col, key), data);
+        }
+
+        async function dbDelete(collectionName, id) {
+            if (!state.user) return;
+            const col = getUserCollection(collectionName);
+            await deleteDoc(doc(col, id));
+        }
+
+        async function dbClear(collectionName) {
+            // Firestore doesn't have a clear(), so we fetch all and delete
+            const items = await dbGetAll(collectionName);
+            for(const item of items) {
+                const key = item.id || item.key;
+                if(key) await dbDelete(collectionName, key);
+            }
+        }
+
+        // --- INITIALIZATION ---
+        async function initApp() {
+            state.availableYears = generateYearList();
+            
+            // Populate Class Selector
+            const classSelect = document.getElementById('header-class-selector');
+            if(classSelect) {
+                classSelect.innerHTML = state.classes.map(c => `<option value="${c}" ${state.currentClass === c ? 'selected' : ''}>${c}</option>`).join('');
+            }
+
+            // Auth Logic
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+
+            onAuthStateChanged(auth, async (user) => {
+                state.user = user;
+                if (user) {
+                    await loadSettings();
+                    updateTheme();
+                    updateHeader();
+                    updateLandingPage();
+                    await loadClassData();
+                    render();
+                }
+            });
+            
+            switchGlobalTab(state.currentView);
+            lucide.createIcons();
+        }
+
+        async function loadSettings() {
+            const settingsList = await dbGetAll('settings');
+            const sMap = {};
+            settingsList.forEach(s => sMap[s.key] = s.value);
+
+            // Load Custom Class List
+            if (sMap.classList) {
+                state.classes = sMap.classList;
+            } else {
+                // If no custom list, save default so it exists
+                await dbPut('settings', { key: 'classList', value: DEFAULT_CLASSES }, 'classList');
+            }
+
+            if (sMap.logo) state.schoolLogo = sMap.logo;
+            if (sMap.lastYear) state.currentYear = sMap.lastYear;
+            if (sMap.lastMonth) state.currentMonth = sMap.lastMonth;
+            if (sMap.lastClass) state.currentClass = sMap.lastClass;
+            
+            // Verify current class exists in list, else default
+            if(!state.classes.includes(state.currentClass)) {
+                state.currentClass = state.classes[0];
+            }
+
+            if (sMap.theme) state.theme = sMap.theme;
+            
+            if (sMap.homeTitle) state.homeTitle = sMap.homeTitle;
+            if (sMap.homeSubtitle) state.homeSubtitle = sMap.homeSubtitle;
+            if (sMap.homeQuote) state.homeQuote = sMap.homeQuote;
+            if (sMap.homeQuoteAuthor) state.homeQuoteAuthor = sMap.homeQuoteAuthor;
+            
+            // Set Favicon from settings
+            if (sMap.favicon) {
+                document.getElementById('app-favicon').href = sMap.favicon;
+                document.getElementById('app-apple-touch-icon').href = sMap.favicon;
+            }
+        }
+
+        async function loadClassData() {
+            if (!state.user) return;
+            const allStudents = await dbGetAll('students');
+            // Filter by Year AND Class ID
+            state.students = allStudents.filter(s => s.year === state.currentYear && s.classId === state.currentClass).sort((a,b) => a.name.localeCompare(b.name));
+            
+            const allGrades = await dbGetAll('grades');
+            // Helper for grades
+            const relevantGrades = allGrades.filter(g => g.year === state.currentYear);
+
+            if (state.currentMonth === 'Semester 1') {
+                state.grades = {};
+                state.students.forEach(s => {
+                    const sGrades = relevantGrades.filter(g => g.studentId === s.id && SEM1_MONTHS.includes(g.month));
+                    const agg = {};
+                    ALL_SUBJECTS.forEach(sub => {
+                        let sum = 0;
+                        SEM1_MONTHS.forEach(m => {
+                            const monthRecord = sGrades.find(g => g.month === m);
+                            if(monthRecord && monthRecord.scores && monthRecord.scores[sub] !== undefined) sum += monthRecord.scores[sub];
+                        });
+                        agg[sub] = sum / 5;
+                    });
+                    state.grades[s.id] = agg;
+                });
+            } else if (state.currentMonth === 'Semester 2') {
+                state.grades = {};
+                state.students.forEach(s => {
+                    const sGrades = relevantGrades.filter(g => g.studentId === s.id && SEM2_MONTHS.includes(g.month));
+                    const agg = {};
+                    ALL_SUBJECTS.forEach(sub => {
+                        let sum = 0;
+                        SEM2_MONTHS.forEach(m => {
+                            const monthRecord = sGrades.find(g => g.month === m);
+                            if(monthRecord && monthRecord.scores && monthRecord.scores[sub] !== undefined) sum += monthRecord.scores[sub];
+                        });
+                        agg[sub] = sum / 4;
+                    });
+                    state.grades[s.id] = agg;
+                });
+            } else if (state.currentMonth === 'All Year') {
+                state.grades = {};
+                state.students.forEach(s => {
+                    const sGrades = relevantGrades.filter(g => g.studentId === s.id);
+                    const agg = {};
+                    ALL_SUBJECTS.forEach(sub => {
+                        // Sem 1
+                        let sum1 = 0;
+                        SEM1_MONTHS.forEach(m => {
+                            const r = sGrades.find(g => g.month === m);
+                            if(r && r.scores && r.scores[sub] !== undefined) sum1 += r.scores[sub];
+                        });
+                        const sem1 = sum1 / 5;
+                        // Sem 2
+                        let sum2 = 0;
+                        SEM2_MONTHS.forEach(m => {
+                            const r = sGrades.find(g => g.month === m);
+                            if(r && r.scores && r.scores[sub] !== undefined) sum2 += r.scores[sub];
+                        });
+                        const sem2 = sum2 / 4;
+                        agg[sub] = (sem1 + sem2) / 2;
+                    });
+                    state.grades[s.id] = agg;
+                });
+            } else {
+                state.grades = {};
+                relevantGrades.filter(g => g.month === state.currentMonth).forEach(g => {
+                    state.grades[g.studentId] = g.scores;
+                });
+            }
+        }
+
+        // --- GLOBAL FUNCTIONS (Attached to window) ---
+        
+        window.switchGlobalTab = function(tab) {
+            state.currentView = tab;
+            const landingPage = document.getElementById('landing-page');
+            const appWrapper = document.getElementById('app-wrapper');
+            const btnHome = document.getElementById('g-tab-home');
+            const btnApp = document.getElementById('g-tab-scoring');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            mobileMenu.classList.add('hidden');
+
+            if (tab === 'home') {
+                landingPage.classList.remove('hidden');
+                appWrapper.classList.add('hidden');
+                appWrapper.classList.remove('flex');
+                
+                btnHome.classList.add('text-blue-600', 'border-blue-600');
+                btnHome.classList.remove('text-slate-600', 'border-transparent');
+                
+                btnApp.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
+                btnApp.classList.add('bg-white', 'text-blue-600', 'border', 'border-blue-200');
+                
+            } else {
+                landingPage.classList.add('hidden');
+                appWrapper.classList.remove('hidden');
+                appWrapper.classList.add('flex');
+                
+                render();
+                updateTheme(); 
+
+                btnHome.classList.remove('text-blue-600', 'border-blue-600');
+                btnHome.classList.add('text-slate-600', 'border-transparent');
+                
+                btnApp.classList.add('bg-blue-600', 'text-white', 'shadow-md');
+                btnApp.classList.remove('bg-white', 'text-blue-600', 'border', 'border-blue-200');
+            }
+        };
+
+        window.toggleMobileMenu = function() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        };
+
+        window.switchTab = function(tabName) {
+            state.activeTab = tabName;
+            if (tabName === 'class') {
+                if(state.view === 'student') {
+                    state.view = 'class';
+                    state.selectedStudent = null;
+                }
+            }
+            render();
+        };
+
+        // --- ADMIN CODE LOGIC ---
+        window.checkAdminCode = function() {
+            if (state.isAdminUnlocked) {
+                window.switchTab('settings');
+            } else {
+                document.getElementById('admin-code-modal').classList.remove('hidden');
+                document.getElementById('admin-code-modal').classList.add('flex');
+            }
+        };
+
+        window.validateAdminCode = function() {
+            const input = document.getElementById('admin-code-input');
+            if (input.value === '0000') {
+                state.isAdminUnlocked = true;
+                input.value = '';
+                closeModal('admin-code-modal');
+                window.switchTab('settings');
+                showNotification('Admin Access Granted', 'success');
+            } else {
+                showNotification('Incorrect Admin Code', 'error');
+                input.classList.add('ring-2', 'ring-red-500');
+                setTimeout(() => input.classList.remove('ring-2', 'ring-red-500'), 1000);
+            }
+        };
+
+        // --- CLASS MANAGEMENT LOGIC ---
+        window.addClass = async function() {
+            const newClass = document.getElementById('new-class-name').value.trim();
+            if (!newClass) return;
+            if (state.classes.includes(newClass)) {
+                alert('Class already exists!');
+                return;
+            }
+            state.classes.push(newClass);
+            state.classes.sort(); // Keep sorted
+            await dbPut('settings', { key: 'classList', value: state.classes }, 'classList');
+            document.getElementById('new-class-name').value = '';
+            render(); // Re-render settings to show new list
+            updateHeader(); // Update header dropdown
+            showNotification('Class added successfully');
+        };
+
+        window.deleteClass = async function(className) {
+            if (!confirm(`Are you sure you want to delete "${className}"? Students in this class will not be deleted but will be hidden until assigned to a new class.`)) return;
+            
+            state.classes = state.classes.filter(c => c !== className);
+            
+            // If current class was deleted, switch to first available
+            if (state.currentClass === className) {
+                state.currentClass = state.classes.length > 0 ? state.classes[0] : '';
+                await dbPut('settings', { key: 'lastClass', value: state.currentClass }, 'lastClass');
+            }
+            
+            await dbPut('settings', { key: 'classList', value: state.classes }, 'classList');
+            render();
+            updateHeader();
+            showNotification('Class deleted');
+        };
+        
+        window.renameClass = async function(oldName) {
+            const newName = prompt("Enter new name for " + oldName, oldName);
+            if (!newName || newName === oldName) return;
+            if (state.classes.includes(newName)) {
+                alert('Class name already exists!');
+                return;
+            }
+            
+            // Update List
+            const idx = state.classes.indexOf(oldName);
+            if (idx !== -1) state.classes[idx] = newName;
+            state.classes.sort();
+            
+            // Update Current Selection if needed
+            if (state.currentClass === oldName) {
+                state.currentClass = newName;
+                await dbPut('settings', { key: 'lastClass', value: newName }, 'lastClass');
+            }
+            
+            // Update Settings
+            await dbPut('settings', { key: 'classList', value: state.classes }, 'classList');
+            
+            // Batch Update Students
+            // Since we can't do a real batch easily with helper, we iterate
+            const allStudents = await dbGetAll('students');
+            const studentsToUpdate = allStudents.filter(s => s.classId === oldName);
+            
+            for (const s of studentsToUpdate) {
+                s.classId = newName;
+                await dbPut('students', s, s.id);
+            }
+            
+            render();
+            updateHeader();
+            showNotification(`Renamed to ${newName}. Updated ${studentsToUpdate.length} students.`);
+        };
+
+        // --- DATA ACTIONS ---
+        window.saveSettings = async function() {
+            const logoInput = document.getElementById('setting-logo-input');
+            const faviconInput = document.getElementById('setting-favicon-input');
+            
+            const homeTitle = document.getElementById('setting-home-title').value;
+            const homeSubtitle = document.getElementById('setting-home-subtitle').value;
+            const homeQuote = document.getElementById('setting-home-quote').value;
+            const homeAuthor = document.getElementById('setting-home-author').value;
+
+            state.homeTitle = homeTitle;
+            state.homeSubtitle = homeSubtitle;
+            state.homeQuote = homeQuote;
+            state.homeQuoteAuthor = homeAuthor;
+            
+            await dbPut('settings', { key: 'homeTitle', value: homeTitle }, 'homeTitle');
+            await dbPut('settings', { key: 'homeSubtitle', value: homeSubtitle }, 'homeSubtitle');
+            await dbPut('settings', { key: 'homeQuote', value: homeQuote }, 'homeQuote');
+            await dbPut('settings', { key: 'homeQuoteAuthor', value: homeAuthor }, 'homeQuoteAuthor');
+            
+            updateLandingPage();
+
+            // Handle Images
+            const processFile = (file) => new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+
+            if (logoInput.files && logoInput.files[0]) {
+                const logoData = await processFile(logoInput.files[0]);
+                state.schoolLogo = logoData;
+                await dbPut('settings', { key: 'logo', value: logoData }, 'logo');
+            }
+
+            if (faviconInput && faviconInput.files && faviconInput.files[0]) {
+                const favData = await processFile(faviconInput.files[0]);
+                await dbPut('settings', { key: 'favicon', value: favData }, 'favicon');
+                document.getElementById('app-favicon').href = favData;
+                document.getElementById('app-apple-touch-icon').href = favData;
+            }
+
+            finishSave();
+        };
+
+        window.switchClass = async function(newClass) {
+            state.currentClass = newClass;
+            await dbPut('settings', { key: 'lastClass', value: newClass }, 'lastClass');
+            await loadClassData();
+            render();
+        };
+
+        window.addStudent = async function() {
+            const name = document.getElementById('new-student-name').value.trim();
+            const nick = document.getElementById('new-student-nick').value.trim();
+            if (!name) return;
+            const newS = { id: Date.now().toString(), name, nickname: nick, year: state.currentYear, classId: state.currentClass };
+            await dbPut('students', newS, newS.id);
+            document.getElementById('new-student-name').value = '';
+            document.getElementById('new-student-nick').value = '';
+            showNotification(`Student added to ${state.currentClass}`);
+            await loadClassData();
+            if(document.getElementById('manage-students-modal').classList.contains('flex')) {
+                 document.getElementById('roster-list-container').innerHTML = renderRosterList();
+            }
+            render();
+        };
+
+        window.deleteStudent = async function(id) {
+            if(!confirm('Delete this student?')) return;
+            await dbDelete('students', id);
+            // Delete associated grades
+            const allGrades = await dbGetAll('grades');
+            const toDelete = allGrades.filter(g => g.studentId === id);
+            for(const g of toDelete) { await dbDelete('grades', g.id); }
+            
+            showNotification('Student deleted');
+            await loadClassData();
+            if(document.getElementById('manage-students-modal').classList.contains('flex')) { 
+                document.getElementById('roster-list-container').innerHTML = renderRosterList(); 
+            }
+            render();
+        };
+
+        window.quickUpdateScore = async function(studentId, subject, value) {
+            const val = parseFloat(value);
+            if (!state.grades[studentId]) state.grades[studentId] = {};
+            if (isNaN(val)) delete state.grades[studentId][subject];
+            else state.grades[studentId][subject] = val;
+            
+            const gradeId = `${studentId}_${state.currentMonth}_${state.currentYear}`;
+            const gradeData = { id: gradeId, studentId, month: state.currentMonth, year: state.currentYear, scores: state.grades[studentId] };
+            
+            await dbPut('grades', gradeData, gradeId);
+            
+            // Immediate DOM update for reactivity (calc logic simplified for update)
+            const student = state.students.find(s => s.id === studentId);
+            if(student) {
+               const rowData = calculateRowData(student);
+               const laoTotalEl = document.getElementById(`lt-${studentId}`);
+               if(laoTotalEl) laoTotalEl.innerText = rowData.laoTotal !== null ? rowData.laoTotal : '-';
+               if(document.getElementById(`la-${studentId}`)) document.getElementById(`la-${studentId}`).innerText = rowData.laoAvg !== null ? rowData.laoAvg : '-';
+               if(document.getElementById(`gt-${studentId}`)) document.getElementById(`gt-${studentId}`).innerText = rowData.grandTotal !== null ? rowData.grandTotal : '-';
+               if(document.getElementById(`ga-${studentId}`)) document.getElementById(`ga-${studentId}`).innerText = rowData.averagePoints !== null ? rowData.averagePoints : '-';
+               
+               // Result
+                let result = '-';
+                if (Object.keys(state.grades[studentId]).length > 0) {
+                    const scores = [];
+                    ALL_SUBJECTS.forEach(sub => { if(state.grades[studentId][sub] !== undefined) scores.push(state.grades[studentId][sub]) });
+                    if (scores.length > 0) {
+                        const minScore = Math.min(...scores);
+                        const countBelowOrEqual4 = scores.filter(s => s <= 4).length;
+                        if (minScore >= 7) result = 'ຮອບດ້ານ';
+                        else if (countBelowOrEqual4 === 0) result = 'ສົມບູນ';
+                        else if (countBelowOrEqual4 === 1) result = 'ອະນຸໂລມ';
+                        else result = 'ຕົກ';
+                    }
+                }
+                if(document.getElementById(`res-${studentId}`)) document.getElementById(`res-${studentId}`).innerText = result;
+            }
+        };
+
+        window.toggleSort = function(key) {
+            if (state.sortKey === key) state.sortDesc = !state.sortDesc;
+            else { state.sortKey = key; state.sortDesc = key === 'rank' ? true : false; }
+            render();
+        };
+
+        window.navigateToStudent = async function(studentId) {
+            state.selectedStudent = state.students.find(s => s.id === studentId);
+            state.activeTab = 'class';
+            state.view = 'student';
+            const allGrades = await dbGetAll('grades');
+            state.studentHistory = {};
+            allGrades.filter(g => g.studentId === studentId && g.year === state.currentYear)
+                      .forEach(g => { state.studentHistory[g.month] = g.scores; });
+            render();
+        };
+        
+        window.navigateToClassList = function() {
+            state.activeTab = 'class';
+            state.view = 'class';
+            state.selectedStudent = null;
+            render();
+        };
+
+        window.toggleHighlight = async function(id) {
+            const s = state.students.find(x => x.id === id);
+            if(!s) return;
+            const highlightKey = `${state.currentMonth}_${state.currentYear}`;
+            if (!s.highlights) s.highlights = {};
+            const colors = ['', 'bg-yellow-100', 'bg-green-100', 'bg-red-100', 'bg-blue-100'];
+            const currentColor = s.highlights[highlightKey] || '';
+            const nextColor = colors[(colors.indexOf(currentColor) + 1) % colors.length];
+            s.highlights[highlightKey] = nextColor;
+            await dbPut('students', s, s.id);
+            render(); 
+        };
+        
+        window.toggleRowHighlight = function(btn) {
+            const tr = btn.closest('tr');
+            if (tr) {
+                if (tr.classList.contains('bg-yellow-50')) { tr.classList.remove('bg-yellow-50'); tr.classList.add('bg-green-50'); } 
+                else if (tr.classList.contains('bg-green-50')) { tr.classList.remove('bg-green-50'); } 
+                else { tr.classList.add('bg-yellow-50'); }
+            }
+        };
+
+        window.openManageStudentsModal = function() {
+            if(document.getElementById('manage-modal-class-name')) document.getElementById('manage-modal-class-name').innerText = state.currentClass;
+            document.getElementById('roster-list-container').innerHTML = renderRosterList();
+            openModal('manage-students-modal');
+        };
+        
+        window.openEditStudentModal = function(id) { 
+            const s = state.students.find(x => x.id === id); 
+            if(!s) return; 
+            document.getElementById('edit-student-id').value = s.id; 
+            document.getElementById('edit-student-fullname').value = s.name; 
+            document.getElementById('edit-student-nickname').value = s.nickname || ''; 
+            openModal('edit-student-modal'); 
+        };
+        
+        window.deleteStudentFromModal = function() { 
+            const id = document.getElementById('edit-student-id').value; 
+            if(id) window.deleteStudent(id); 
+        };
+        
+        window.saveStudentDetails = async function() { 
+            const id = document.getElementById('edit-student-id').value; 
+            const name = document.getElementById('edit-student-fullname').value; 
+            const nick = document.getElementById('edit-student-nickname').value; 
+            const existingStudent = state.students.find(s => s.id === id);
+            const studentData = { ...existingStudent, name, nickname: nick };
+            await dbPut('students', studentData, id); 
+            await loadClassData(); 
+            render(); 
+            closeModal('edit-student-modal'); 
+        };
+        
+        window.openPrintModal = function() {
+            document.getElementById('scale-value').innerText = state.printScale + '%';
+            document.getElementById('print-scale').value = state.printScale;
+            document.getElementById('btn-portrait').classList.remove('border-blue-600', 'bg-blue-50', 'text-blue-700');
+            document.getElementById('btn-landscape').classList.remove('border-blue-600', 'bg-blue-50', 'text-blue-700');
+            if(state.printOrientation === 'portrait') { document.getElementById('btn-portrait').classList.add('border-blue-600', 'bg-blue-50', 'text-blue-700'); } 
+            else { document.getElementById('btn-landscape').classList.add('border-blue-600', 'bg-blue-50', 'text-blue-700'); }
+            
+            document.getElementById('print-scale').oninput = function() {
+                state.printScale = this.value;
+                document.getElementById('scale-value').innerText = this.value + '%';
+            }
+            openModal('print-settings-modal');
+        };
+        
+        window.setPrintOrientation = function(orient) {
+            state.printOrientation = orient;
+            openPrintModal(); // Refresh UI
+        };
+        
+        window.executePrint = function() {
+            const styleId = 'dynamic-print-style';
+            let styleEl = document.getElementById(styleId);
+            if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = styleId; document.head.appendChild(styleEl); }
+            const zoomVal = state.printScale / 100;
+            styleEl.innerHTML = `@media print { @page { size: ${state.printOrientation}; margin: 5mm; } body { zoom: ${zoomVal}; } }`;
+            closeModal('print-settings-modal');
+            setTimeout(() => window.print(), 300);
+        };
+        
+        window.setTheme = async function(themeKey) {
+            state.theme = themeKey;
+            await dbPut('settings', { key: 'theme', value: themeKey }, 'theme');
+            updateTheme();
+            render(); 
+        };
+        
+        window.openModal = function(id) { 
+            const el = document.getElementById(id);
+            el.classList.remove('hidden'); 
+            el.classList.add('flex'); 
+            if(id==='upload-modal') { 
+                document.getElementById('modal-month').innerText = state.currentMonth; 
+                document.getElementById('modal-year').innerText = state.currentYear; 
+            }
+        };
+        
+        window.closeModal = function(id) { 
+            const el = document.getElementById(id);
+            el.classList.add('hidden'); 
+            el.classList.remove('flex'); 
+        };
+        
+        function showNotification(msg, type) { 
+            const notif = document.getElementById('notification'); 
+            const msgEl = document.getElementById('notif-msg'); 
+            notif.className = `fixed top-24 right-6 z-[60] px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 transition-all duration-300 transform no-print ${type === 'error' ? 'bg-red-500 text-white' : 'bg-emerald-600 text-white'}`; 
+            msgEl.innerText = msg; 
+            notif.classList.remove('translate-x-full', 'hidden'); 
+            setTimeout(() => notif.classList.add('translate-x-full'), 3000); 
+        }
+        window.showNotification = showNotification; // Explicitly attach helper too
+
+        function updateLandingPage() {
+            const titleEl = document.getElementById('landing-hero-title');
+            if(titleEl) titleEl.innerText = state.homeTitle || DEFAULT_HOME_TITLE;
+            const subtitleEl = document.getElementById('landing-hero-subtitle');
+            if(subtitleEl) subtitleEl.innerText = state.homeSubtitle || DEFAULT_HOME_SUBTITLE;
+            const quoteEl = document.getElementById('landing-quote-text');
+            if(quoteEl) quoteEl.innerText = `"${state.homeQuote || DEFAULT_QUOTE}"`;
+            const authorEl = document.getElementById('landing-quote-author');
+            if(authorEl) authorEl.innerText = `— ${state.homeQuoteAuthor || DEFAULT_AUTHOR}`;
+        }
+
+        function updateHeader() {
+            // Update Class Selector if exists
+            const classSelect = document.getElementById('header-class-selector');
+            if(classSelect) {
+                // If options don't match state, rebuild
+                if(classSelect.options.length !== state.classes.length) {
+                     classSelect.innerHTML = state.classes.map(c => `<option value="${c}" ${state.currentClass === c ? 'selected' : ''}>${c}</option>`).join('');
+                } else {
+                    classSelect.value = state.currentClass;
+                }
+            }
+
+            const hYear = document.getElementById('header-year-display');
+            if(hYear) hYear.innerText = state.currentYear;
+            const fYear = document.getElementById('footer-year');
+            if(fYear) fYear.innerText = state.currentYear;
+            const logoImg = document.getElementById('header-logo');
+            const logoIcon = document.getElementById('header-icon');
+            if (state.schoolLogo && logoImg && logoIcon) {
+                logoImg.src = state.schoolLogo;
+                logoImg.classList.remove('hidden');
+                logoIcon.classList.add('hidden');
+            } else if (logoImg && logoIcon) {
+                logoImg.classList.add('hidden');
+                logoIcon.classList.remove('hidden');
+            }
+        }
+
+        function updateTheme() {
+            const theme = THEMES[state.theme] || THEMES.blue;
+            const header = document.getElementById('main-header');
+            if (header) {
+                header.className = `text-white shadow-lg sticky top-0 z-30 no-print flex-none transition-colors duration-300 ${theme.header}`;
+            }
+        }
+
+        function renderRosterList() {
+            if (state.students.length === 0) return '<p class="text-center text-slate-400 text-sm py-8">No students enrolled yet.</p>';
+            return state.students.map(s => `
+                <div class="flex justify-between items-center p-3 hover:bg-white rounded-lg transition-colors border-b border-slate-100 last:border-0 group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">${s.name.charAt(0)}</div>
+                        <div><p class="text-sm font-medium text-slate-700">${s.name}</p><p class="text-xs text-slate-400">${s.nickname || ''}</p></div>
+                    </div>
+                    <button onclick="deleteStudent('${s.id}')" class="text-slate-400 hover:text-red-600 p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full shadow-sm border border-slate-100 hover:border-red-200"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+        }
+
+        // --- CALCULATION LOGIC ---
+        function calculateRowData(student) {
+            const grades = state.grades[student.id] || {};
+            let laoTotal = 0, laoCount = 0;
+            LAO_SUB_SUBJECTS.forEach(sub => { if(grades[sub] !== undefined) { laoTotal += grades[sub]; laoCount++; } });
+            const laoAvg = laoCount === 6 ? (laoTotal / 6) : 0;
+            let grandTotal = laoAvg;
+            OTHER_SUBJECTS.forEach(sub => { if(grades[sub] !== undefined) grandTotal += grades[sub]; });
+            const averagePoints = grandTotal / 9;
+            return { grades, laoTotal: laoCount > 0 ? laoTotal : null, laoAvg: laoCount > 0 ? laoAvg.toFixed(1) : null, grandTotal: grandTotal > 0 ? grandTotal.toFixed(1) : null, averagePoints: averagePoints > 0 ? averagePoints.toFixed(2) : null, rawAvg: averagePoints };
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function render() {
+            const app = document.getElementById('app');
+            app.innerHTML = '';
+            
+            ['dashboard', 'class', 'settings'].forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                if(el) {
+                    if (state.activeTab === t) {
+                        el.classList.add('bg-white/20', 'text-white', 'shadow-inner');
+                        el.classList.remove('text-blue-100', 'hover:bg-white/10');
+                    } else {
+                        el.classList.remove('bg-white/20', 'text-white', 'shadow-inner');
+                        el.classList.add('text-blue-100', 'hover:bg-white/10');
+                    }
+                }
+            });
+
+            if (state.activeTab === 'dashboard') {
+                app.innerHTML = renderDashboard();
+            } else if (state.activeTab === 'class') {
+                if (state.view === 'student') {
+                    app.innerHTML = renderStudentView();
+                } else {
+                    app.innerHTML = renderClassView();
+                    // Re-bind listeners because innerHTML replaced them
+                    const selMonth = document.getElementById('month-select');
+                    if(selMonth) selMonth.addEventListener('change', async (e) => {
+                        state.currentMonth = e.target.value;
+                        await dbPut('settings', { key: 'lastMonth', value: state.currentMonth }, 'lastMonth');
+                        await loadClassData();
+                        render();
+                    });
+                    const selYear = document.getElementById('year-select');
+                    if(selYear) selYear.addEventListener('change', async (e) => {
+                        state.currentYear = e.target.value;
+                        await dbPut('settings', { key: 'lastYear', value: state.currentYear }, 'lastYear');
+                        updateHeader();
+                        await loadClassData();
+                        render();
+                    });
+                }
+            } else if (state.activeTab === 'settings') {
+                app.innerHTML = renderSettingsPage();
+                // No setting-class-name listener anymore
+            }
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        function renderDashboard() {
+            // ... (Same dashboard render code)
+            const totalStudents = state.students.length;
+            let totalAvg = 0;
+            let countWithGrades = 0;
+            let passCount = 0;
+            const studentPerformances = [];
+            state.students.forEach(s => {
+                const scores = state.grades[s.id] || {};
+                const scoreVals = Object.values(scores);
+                if (scoreVals.length > 0) {
+                    const avg = scoreVals.reduce((a,b)=>a+b,0) / scoreVals.length;
+                    totalAvg += avg;
+                    countWithGrades++;
+                    studentPerformances.push({ ...s, avg: avg });
+                    if (avg >= 5) passCount++;
+                }
+            });
+            const passRate = countWithGrades > 0 ? ((passCount / countWithGrades) * 100).toFixed(1) + '%' : 'N/A';
+            studentPerformances.sort((a,b) => b.avg - a.avg);
+            const topStudents = studentPerformances.slice(0, 3);
+
+            return `
+                <div class="fade-in max-w-5xl mx-auto flex-grow flex flex-col">
+                    <div class="mb-8 flex justify-between items-end">
+                        <div>
+                            <h2 class="text-3xl font-bold text-slate-800">Welcome back!</h2>
+                            <p class="text-slate-500">Overview for <span class="font-bold text-blue-600">${state.currentClass}</span> - ${MONTH_DISPLAY_MAP[state.currentMonth]} (${state.currentYear})</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                            <div class="flex items-center gap-4">
+                                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg"><i data-lucide="users" class="w-6 h-6"></i></div>
+                                <div><p class="text-sm text-slate-500 font-medium">Total Students</p><p class="text-2xl font-bold text-slate-800">${totalStudents}</p></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                            <div class="flex items-center gap-4">
+                                <div class="p-3 bg-emerald-100 text-emerald-600 rounded-lg"><i data-lucide="bar-chart-3" class="w-6 h-6"></i></div>
+                                <div><p class="text-sm text-slate-500 font-medium">Passing Rate (ຜ່ານ)</p><p class="text-2xl font-bold text-slate-800">${passRate}</p></div>
+                            </div>
+                        </div>
+                         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                            <div class="flex items-center gap-4">
+                                <div class="p-3 bg-purple-100 text-purple-600 rounded-lg"><i data-lucide="calendar" class="w-6 h-6"></i></div>
+                                <div><p class="text-sm text-slate-500 font-medium">Current Month</p><p class="text-lg font-bold text-slate-800">${state.currentMonth}</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i> Top Performers (ນັກຮຽນເກ່ງ)</h3>
+                            ${topStudents.length > 0 ? `<div class="space-y-4">${topStudents.map((s, idx) => `
+                                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">${idx + 1}</div>
+                                        <div><p class="font-medium text-slate-700">${s.name}</p><p class="text-xs text-slate-400">Avg: ${s.avg.toFixed(1)}</p></div>
+                                    </div>
+                                    <i data-lucide="award" class="w-5 h-5 ${idx===0?'text-amber-500':idx===1?'text-slate-400':'text-orange-700'}"></i>
+                                </div>
+                            `).join('')}</div>` : `<p class="text-slate-400 text-center py-4">No grades recorded yet.</p>`}
+                        </div>
+                        <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl shadow-sm p-6 text-white">
+                            <h3 class="text-lg font-bold mb-2">Quick Actions</h3>
+                            <div class="grid grid-cols-3 gap-4 mt-6">
+                                <button onclick="switchTab('class')" class="bg-white/10 hover:bg-white/20 p-4 rounded-lg flex flex-col items-center gap-2 transition-colors"><i data-lucide="table" class="w-6 h-6"></i><span class="text-sm font-medium">View Class List</span></button>
+                                <button onclick="switchTab('class'); openModal('upload-modal')" class="bg-white/10 hover:bg-white/20 p-4 rounded-lg flex flex-col items-center gap-2 transition-colors"><i data-lucide="upload-cloud" class="w-6 h-6"></i><span class="text-sm font-medium">Upload Grades</span></button>
+                                <button onclick="switchTab('settings')" class="bg-white/10 hover:bg-white/20 p-4 rounded-lg flex flex-col items-center gap-2 transition-colors"><i data-lucide="user-plus" class="w-6 h-6"></i><span class="text-sm font-medium">Add Students</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderClassView() {
+            const hasStudents = state.students.length > 0;
+            let processedStudents = state.students.map(s => ({ ...s, ...calculateRowData(s) }));
+            const isCalculatedView = ['Semester 1', 'Semester 2', 'All Year'].includes(state.currentMonth);
+            
+            const scoreMap = processedStudents.map(s => s.rawAvg || 0);
+            const sortedScores = [...scoreMap].sort((a,b) => b - a);
+            
+            const rows = processedStudents.sort((a,b) => {
+                if (state.sortKey === 'name') {
+                    return state.sortDesc ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
+                } else {
+                    return state.sortDesc ? (b.rawAvg || 0) - (a.rawAvg || 0) : (a.rawAvg || 0) - (b.rawAvg || 0);
+                }
+            }).map((student, index) => {
+                const rank = (student.rawAvg > 0) ? sortedScores.indexOf(student.rawAvg) + 1 : '-';
+                
+                let result = '-';
+                if (Object.keys(student.grades).length > 0) {
+                    const scores = [];
+                    LAO_SUB_SUBJECTS.forEach(sub => { if(student.grades[sub] !== undefined) scores.push(student.grades[sub]) });
+                    OTHER_SUBJECTS.forEach(sub => { if(student.grades[sub] !== undefined) scores.push(student.grades[sub]) });
+                    
+                    if (scores.length > 0) {
+                        const minScore = Math.min(...scores);
+                        const countBelowOrEqual4 = scores.filter(s => s <= 4).length;
+                        if (minScore >= 7) result = 'ຮອບດ້ານ';
+                        else if (countBelowOrEqual4 === 0) result = 'ສົມບູນ';
+                        else if (countBelowOrEqual4 === 1) result = 'ອະນຸໂລມ';
+                        else result = 'ຕົກ';
+                    }
+                }
+                
+                const highlightKey = `${state.currentMonth}_${state.currentYear}`;
+                const highlightClass = student.highlights && student.highlights[highlightKey] ? student.highlights[highlightKey] : '';
+                let rowClass = `border-b border-slate-100 group transition-colors hover:bg-opacity-80 ${highlightClass || 'hover:bg-blue-50'}`;
+
+                return `
+                    <tr class="${rowClass}">
+                        <td class="px-1 py-0.5 sticky left-0 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-black font-bold border border-slate-300 text-center bg-white ${highlightClass || 'group-hover:bg-blue-50'}"><span class="text-sm text-slate-500 font-medium">${index + 1}</span></td>
+                        <td class="px-1 py-0.5 sticky left-[30px] z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-black font-bold border border-slate-300 text-left bg-white ${highlightClass || 'group-hover:bg-blue-50'}">
+                            <div class="flex items-center justify-center gap-2 cursor-pointer p-1 overflow-hidden" onclick="navigateToStudent('${student.id}')"><span class="text-sm font-bold text-slate-800 whitespace-nowrap" title="${student.name}">${student.name}</span></div>
+                        </td>
+                        <td class="px-1 py-0.5 text-center text-sm font-bold text-black border border-slate-300">${student.nickname || '-'}</td>
+                        <td class="p-0 text-center w-14 no-print whitespace-nowrap border border-slate-300">
+                             <button onclick="toggleHighlight('${student.id}')" class="text-slate-400 hover:text-orange-500 mr-1"><i data-lucide="paint-bucket" class="w-3 h-3"></i></button>
+                             ${!isCalculatedView ? `<button onclick="openEditStudentModal('${student.id}')" class="text-slate-400 hover:text-blue-600"><i data-lucide="edit-2" class="w-3 h-3"></i></button>` : ''}
+                        </td>
+                        ${LAO_SUB_SUBJECTS.map(sub => {
+                            const val = student.grades[sub];
+                            const isLow = (typeof val === 'number' && val <= 4); 
+                            const isMedium = (typeof val === 'number' && val >= 5 && val < 7);
+                            const color = isLow ? 'bg-score-green text-black font-bold' : (isMedium ? 'bg-score-blue text-black' : 'text-black');
+                            const displayVal = val !== undefined ? (isCalculatedView ? val.toFixed(1).replace(/\.0$/, '') : val) : '';
+                            const inputHtml = isCalculatedView ? `<span class="text-xs font-medium">${displayVal}</span>` : `<input type="number" step="0.5" class="score-input w-full h-full text-center bg-transparent focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-xs font-medium" value="${displayVal}" onchange="quickUpdateScore('${student.id}', '${sub}', this.value)">`;
+                            return `<td class="p-0 border border-slate-300 text-center ${color}">${inputHtml}<span class="score-print text-xs font-medium ${isLow ? 'font-bold' : ''}">${displayVal !== '' ? displayVal : '-'}</span></td>`
+                        }).join('')}
+                        <td id="lt-${student.id}" class="px-1 py-0.5 text-center text-xs font-bold bg-yellow-50 text-orange-900 border border-slate-300 min-w-[80px]">${student.laoTotal !== null ? (isCalculatedView ? parseFloat(student.laoTotal).toFixed(1) : student.laoTotal) : '-'}</td>
+                        <td id="la-${student.id}" class="px-1 py-0.5 text-center text-xs font-bold bg-purple-100 text-purple-900 border border-slate-300 min-w-[80px]">${student.laoAvg !== null ? student.laoAvg : '-'}</td>
+                        ${OTHER_SUBJECTS.map(sub => {
+                            const val = student.grades[sub];
+                            const isLow = (typeof val === 'number' && val <= 4);
+                            const isMedium = (typeof val === 'number' && val >= 5 && val < 7);
+                            const color = isLow ? 'bg-score-green text-black font-bold' : (isMedium ? 'bg-score-blue text-black' : 'text-black');
+                            const displayVal = val !== undefined ? (isCalculatedView ? val.toFixed(1).replace(/\.0$/, '') : val) : '';
+                            const inputHtml = isCalculatedView ? `<span class="text-xs font-medium">${displayVal}</span>` : `<input type="number" step="0.5" class="score-input w-full h-full text-center bg-transparent focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none text-xs font-medium" value="${displayVal}" onchange="quickUpdateScore('${student.id}', '${sub}', this.value)">`;
+                            return `<td class="p-0 border border-slate-300 text-center ${color}">${inputHtml}<span class="score-print text-xs font-medium ${isLow ? 'font-bold' : ''}">${displayVal !== '' ? displayVal : '-'}</span></td>`
+                        }).join('')}
+                        <td id="gt-${student.id}" class="px-1 py-0.5 text-center text-xs font-bold bg-yellow-50 text-yellow-900 border border-slate-300 min-w-[80px]">${student.grandTotal !== null ? (isCalculatedView ? parseFloat(student.grandTotal).toFixed(1) : student.grandTotal) : '-'}</td>
+                        <td id="ga-${student.id}" class="px-1 py-0.5 text-center text-xs font-bold bg-yellow-200 text-yellow-900 border border-slate-300 min-w-[80px]">${student.averagePoints !== null ? student.averagePoints : '-'}</td>
+                        <td class="px-1 py-0.5 text-center text-xs font-bold text-slate-800 border border-slate-300">${rank}</td>
+                        <td id="res-${student.id}" class="px-1 py-0.5 text-center text-sm font-bold text-black border border-slate-300 min-w-[100px]">${result}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const dropdownMonths = [...MONTHS];
+            dropdownMonths.splice(5, 0, 'Semester 1'); 
+            dropdownMonths.push('Semester 2', 'All Year');
+
+            return `
+                <div class="fade-in h-full flex flex-col flex-1 max-w-[95%] xl:max-w-7xl mx-auto w-full" id="class-table-container">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 no-print shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <select id="year-select" class="pl-8 pr-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none text-sm font-medium">
+                                    ${state.availableYears.map(y => `<option value="${y}" ${state.currentYear === y ? 'selected' : ''}>${y}</option>`).join('')}
+                                </select>
+                                <i data-lucide="clock" class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none"></i>
+                            </div>
+                            <div class="relative">
+                                <select id="month-select" class="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none text-sm lao-text font-medium min-w-[140px]">
+                                    ${dropdownMonths.map(m => `<option value="${m}" ${state.currentMonth === m ? 'selected' : ''}>${MONTH_DISPLAY_MAP[m] || m}</option>`).join('')}
+                                </select>
+                                <i data-lucide="calendar" class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none"></i>
+                            </div>
+                             <button onclick="openPrintModal()" class="p-2 text-slate-500 hover:text-blue-600 bg-white border border-slate-200 rounded-lg shadow-sm" title="Print"><i data-lucide="printer" class="w-4 h-4"></i></button>
+                             ${!isCalculatedView ? `<button onclick="resetMonthScores()" class="p-2 text-slate-500 hover:text-red-600 bg-white border border-slate-200 rounded-lg shadow-sm" title="Reset Month"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>` : ''}
+                        </div>
+                        <div class="flex items-center gap-3">
+                            ${!isCalculatedView ? `<button onclick="openModal('upload-modal')" class="flex items-center gap-2 bg-white text-slate-600 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm text-sm font-medium"><i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i><span class="lao-text">Import Grades</span></button>` : ''}
+                            <button onclick="openManageStudentsModal()" class="flex items-center gap-2 ${THEMES[state.theme].btn} ${THEMES[state.theme].btnHover} text-white px-4 py-2 rounded-lg transition-colors shadow-md shadow-blue-900/10 text-sm font-medium">
+                                <i data-lucide="users" class="w-4 h-4"></i>
+                                <span>Manage Students</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="hidden print-only mb-4 text-center">
+                         ${state.schoolLogo ? `<img src="${state.schoolLogo}" class="h-12 mx-auto mb-2 object-contain">` : ''}
+                        <h2 class="text-xl font-bold">${state.currentClass} Report Sheet</h2>
+                        <p class="text-xs text-gray-500">${MONTH_DISPLAY_MAP[state.currentMonth]} • School Year (ສົກຮຽນ) <span class="font-bold">${state.currentYear}</span></p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0 print:border-0 print:shadow-none">
+                        <div class="overflow-auto custom-scroll flex-1 h-full print:overflow-visible print:h-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-50 border-b border-slate-200 sticky-header">
+                                    <tr>
+                                        <th class="px-1 py-0.5 font-bold text-black text-center sticky left-0 z-50 sticky-corner shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[30px] text-sm align-bottom border border-slate-300"><div>No.</div></th>
+                                        <th class="px-1 py-0.5 font-bold text-black text-center sticky left-[30px] z-50 sticky-corner shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px] text-sm align-bottom cursor-pointer hover:bg-slate-100 transition-colors group border border-slate-300" onclick="toggleSort('name')">
+                                            <div class="flex items-center justify-center gap-1">Name <span class="text-slate-400 text-[10px] group-hover:text-slate-600">${state.sortKey === 'name' ? (state.sortDesc ? '▼' : '▲') : ''}</span></div>
+                                            <div class="lao-text font-normal text-xs text-black">ຊື່ແລະນາມສະກຸນ</div>
+                                        </th>
+                                        <th class="px-1 py-0.5 font-bold text-black text-center min-w-[90px] text-sm bg-slate-50 align-bottom border border-slate-300"><div>Nickname</div><div class="lao-text font-normal text-xs text-black">ຊື່ນ້ອຍ</div></th>
+                                        <th class="p-0 w-14 bg-slate-50 no-print border border-slate-300"></th>
+                                        ${LAO_SUB_SUBJECTS.map(sub => `<th class="th-vertical font-bold text-black text-xs px-1 border border-slate-300"><div>${SUBJECT_DISPLAY_MAP[sub]}</div></th>`).join('')}
+                                        <th class="th-vertical font-bold text-orange-900 text-xs px-1 lao-text bg-yellow-50 border border-slate-300 min-w-[60px]"><div>${SUBJECT_DISPLAY_MAP['LaoTotal']}</div></th>
+                                        <th class="th-vertical font-bold text-purple-900 text-xs px-1 lao-text bg-purple-100 border border-slate-300 min-w-[60px]"><div>${SUBJECT_DISPLAY_MAP['LaoAvg']}</div></th>
+                                        ${OTHER_SUBJECTS.map(sub => `<th class="th-vertical font-bold text-black text-xs px-1 border border-slate-300"><div>${SUBJECT_DISPLAY_MAP[sub]}</div></th>`).join('')}
+                                        <th class="th-vertical font-bold text-yellow-900 text-xs px-1 lao-text bg-yellow-50 border border-slate-300 min-w-[60px]"><div>${SUBJECT_DISPLAY_MAP['GrandTotal']}</div></th>
+                                        <th class="th-vertical font-bold text-yellow-900 text-xs px-1 lao-text bg-yellow-200 border border-slate-300 min-w-[60px]"><div>${SUBJECT_DISPLAY_MAP['GrandAvg']}</div></th>
+                                        <th class="th-vertical font-bold text-black text-xs px-1 lao-text border border-slate-300 cursor-pointer hover:bg-slate-100 transition-colors" onclick="toggleSort('rank')"><div class="flex items-center gap-1">${SUBJECT_DISPLAY_MAP['Rank']}<span class="inline-block transform -rotate-180 ml-1">${state.sortKey === 'rank' ? (state.sortDesc ? '▼' : '▲') : ''}</span></div></th>
+                                        <th class="th-vertical font-bold text-black text-xs px-1 lao-text border border-slate-300 min-w-[80px]"><div>${SUBJECT_DISPLAY_MAP['Result']}</div></th>
+                                    </tr>
+                                </thead>
+                                <tbody>${hasStudents ? rows : `<tr><td colspan="100" class="p-8 text-center text-slate-400 lao-text text-sm border border-slate-300">No students yet for ${state.currentYear}. Add them in Settings!</td></tr>`}</tbody>
+                            </table>
+                            <footer class="print-only print-footer">&copy; Neerada ${state.currentYear}. All rights reserved. Generated by Neerada Grading System.</footer>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize!
+        initApp();
+    </script>
+</body>
+</html>
